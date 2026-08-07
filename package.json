@@ -1,0 +1,37 @@
+{
+  "name": "agent-usage-bar",
+  "version": "0.1.0",
+  "description": "Always-on usage bar for Claude Code and Codex CLI: rate-limit windows, session cost, and what you have enabled.",
+  "license": "MIT",
+  "author": "haelyra",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/haelyra/agent-usage-bar.git"
+  },
+  "keywords": [
+    "claude-code",
+    "codex",
+    "statusline",
+    "cli",
+    "usage",
+    "rate-limit",
+    "tmux"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "bin": {
+    "codex-bar": "bin/codex-bar.js",
+    "claude-statusline": "bin/claude-statusline.js"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "install.sh",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node tests/render.test.js"
+  }
+}
