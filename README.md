@@ -65,8 +65,11 @@ so the bar lives in three places, and the installer sets up all of them:
 3. **In WezTerm** — run `codex` outside tmux and the wrapper opens a three-line
    pane across the bottom of the window for the lifetime of the run, then closes
    it on exit. Nothing to configure.
-4. **Anywhere else** — the wrapper mirrors the bar into the window title, and
-   into an OSC 1337 user var that WezTerm and iTerm2 can pin in their status bar.
+4. **Any other terminal** — the wrapper reserves the bottom three rows of the
+   window and paints the bar there, right under Codex's composer, releasing them
+   on exit. Works in Terminal.app.
+5. **Everywhere** — the bar is also mirrored into the window title and into an
+   OSC 1337 user var that WezTerm and iTerm2 can pin in their status bar.
 
 Plain `codex [args...]` picks all this up through a shell alias; arguments pass
 through untouched.
@@ -76,8 +79,15 @@ node ~/.agent-usage-bar/bin/codex-bar.js --full     # print the three lines
 watch -c -n 30 "node ~/.agent-usage-bar/bin/codex-bar.js --full"
 ```
 
-Only step 2 needs tmux. Everything else works in a plain terminal window, and
-WezTerm gets the same three lines tmux users get.
+Only step 2 needs tmux. Every terminal gets the same three lines one way or
+another: tmux's status area, a WezTerm pane, or reserved rows at the bottom of
+the window.
+
+Reserved rows work because Codex draws inline rather than on the alternate
+screen. Setting the DECSTBM scroll margins to rows 1 to H-3 stops Codex
+scrolling over the bar, and the margins are re-asserted on each repaint so a
+window resize needs no `SIGWINCH` handling. Windows shorter than nine rows are
+left alone.
 
 <details>
 <summary>WezTerm: pin the bar in the tab bar</summary>
@@ -136,7 +146,8 @@ Codex starts and clears when it exits.
 | `USAGE_BAR=off` | Run `codex` with no bar |
 | `USAGE_BAR_INTERVAL=15` | Refresh seconds for the Codex bar |
 | `USAGE_BAR_GLYPHS=ascii\|unicode` | Force the glyph set |
-| `USAGE_BAR_PANE=off` | No WezTerm bottom pane, title and user var only |
+| `USAGE_BAR_PANE=off` | No WezTerm bottom pane, use reserved rows instead |
+| `USAGE_BAR_REGION=off` | No reserved bottom rows, title and user var only |
 
 Block glyphs need a UTF-8 locale — without one, tmux renders them as
 underscores. The installer sets one if yours is not UTF-8, and the bar falls

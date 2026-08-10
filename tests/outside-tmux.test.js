@@ -134,6 +134,10 @@ test('README documents WezTerm, iTerm2, and that tmux is optional', () => {
     'README must state that tmux is optional'
   );
   assert.ok(
+    readme.includes('USAGE_BAR_REGION=off'),
+    'README must document the reserved-rows opt-out'
+  );
+  assert.ok(
     readme.includes('USAGE_BAR_PANE=off'),
     'README must document how to opt out of the WezTerm pane'
   );
@@ -170,6 +174,48 @@ test('WezTerm gets the three-line bar in a pane of its own', () => {
 test('the example ships in the npm package', () => {
   const pkg = JSON.parse(read('package.json'));
   assert.ok(pkg.files.includes('examples/'), 'package.json files must include examples/');
+});
+
+test('plain terminals get the three lines in reserved bottom rows', () => {
+  const wrapper = read(WRAPPER);
+
+  assert.ok(
+    /\\033\[1;%dr/.test(wrapper),
+    'the wrapper must set DECSTBM scroll margins to reserve the rows'
+  );
+  assert.ok(wrapper.includes('\\033[r'), 'the margins must be released on exit');
+  assert.ok(
+    wrapper.includes('\\0337') && wrapper.includes('\\0338'),
+    'repaints must save and restore the cursor'
+  );
+  assert.ok(
+    wrapper.includes('stty size'),
+    'height must come from the tty, not $LINES'
+  );
+
+  const guard = wrapper.slice(wrapper.indexOf('in_plain_terminal() {'));
+  assert.ok(
+    guard.includes('[ -z "${TMUX:-}" ]') && guard.includes('[ -z "$WEZTERM_BAR_PANE" ]'),
+    'the reserved region must yield to tmux and to the WezTerm pane'
+  );
+
+  const cleanup = wrapper.slice(wrapper.indexOf('cleanup() {'), wrapper.indexOf('trap cleanup'));
+  assert.ok(cleanup.includes('region_off'), 'cleanup must release the reserved rows');
+});
+
+test('the bar pane never scrolls itself', () => {
+  const pane = read(PANE);
+
+  assert.ok(
+    !/printf '%s\\033\[K\\n'/.test(pane),
+    'the pane must not end its rows with a newline'
+  );
+  assert.ok(/\\033\[1;1H/.test(pane), 'the pane must address rows absolutely');
+  assert.ok(
+    pane.includes('\\033[?1049h'),
+    'the pane should use the alternate screen so nothing reaches scrollback'
+  );
+  assert.ok(pane.includes('stty size'), 'pane height must come from the tty');
 });
 
 if (failed > 0) {
