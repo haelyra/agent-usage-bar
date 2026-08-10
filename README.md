@@ -73,20 +73,46 @@ node ~/.agent-usage-bar/bin/codex-bar.js --full     # print the three lines
 watch -c -n 30 "node ~/.agent-usage-bar/bin/codex-bar.js --full"
 ```
 
+Only step 2 needs tmux. Steps 1 and 3 work in any terminal, including
+Terminal.app, so tmux buys you the three-line bar and nothing else.
+
 <details>
 <summary>WezTerm: pin the bar in the tab bar</summary>
 
+Copy [`examples/wezterm-usage-bar.lua`](examples/wezterm-usage-bar.lua) next to
+your `wezterm.lua` and require it:
+
 ```lua
-wezterm.on('update-status', function(window, pane)
-  local ok, vars = pcall(function() return pane:get_user_vars() end)
-  local bar = ok and vars.usage_bar or nil
-  if not bar or #bar == 0 then window:set_right_status('') return end
-  window:set_right_status(wezterm.format {
-    { Foreground = { Color = '#F59E0B' } },
-    { Text = bar .. '  ' },
-  })
-end)
+require("wezterm-usage-bar").apply()
 ```
+
+It colors each segment and reads the user var on WezTerm's own `update-status`
+tick, so nothing polls. Override the palette with
+`apply({ colors = { dim = "#...", five_hour = "#...", seven_day = "#...", critical = "#..." } })`.
+
+Set `tab_bar_at_bottom = true` to put the bar along the bottom edge. WezTerm
+draws the right status inside the tab bar and cannot separate the two, so the
+tab strip moves down with it.
+
+If you inline the logic instead, split the bar with a plain `find`, never a Lua
+character class. `[^│]` matches *bytes*, and `│` (`e2 94 82`) shares its leading
+`e2` with `⬢`, `█`, `░` and `↻`, so a class-based split cuts those glyphs in
+half and emits invalid UTF-8.
+
+</details>
+
+<details>
+<summary>iTerm2: pin the bar in the status bar</summary>
+
+Enable the status bar under Settings, Profiles, Session, then Configure Status
+Bar, and drag in an **Interpolated String** component with:
+
+```text
+\(user.usage_bar)
+```
+
+iTerm2 exposes any OSC 1337 user var as `user.<name>`, so the bar appears when
+Codex starts and clears when it exits.
 
 </details>
 
@@ -109,6 +135,7 @@ back to an ASCII set (`| 7d ||____ 25%`) if that is not possible.
   transcript (by modification time, so resumed sessions stay correct)
 - `bin/codex-wrapper` — runs Codex with the bar pinned around it
 - `lib/render.js` — colors, glyphs, bars, shared segments
+- `examples/wezterm-usage-bar.lua` pins the bar in WezTerm's tab bar
 
 Everything is read-only against files the agents already write. The only things
 installed are one `statusLine` entry, one `[tui]` block, and one shell alias.

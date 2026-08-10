@@ -27,11 +27,12 @@
   "files": [
     "bin/",
     "lib/",
+    "examples/",
     "install.sh",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
-    "test": "node tests/render.test.js"
+    "test": "node tests/render.test.js && node tests/outside-tmux.test.js"
   }
 }
