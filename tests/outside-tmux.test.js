@@ -22,6 +22,7 @@ const repoRoot = path.resolve(__dirname, '..');
 const WRAPPER = 'bin/codex-wrapper';
 const EXAMPLE = 'examples/wezterm-usage-bar.lua';
 const README = 'README.md';
+const PANE = 'bin/codex-bar-pane';
 const SEP = '│';
 
 let passed = 0;
@@ -132,6 +133,38 @@ test('README documents WezTerm, iTerm2, and that tmux is optional', () => {
     readme.includes('Only step 2 needs tmux'),
     'README must state that tmux is optional'
   );
+  assert.ok(
+    readme.includes('USAGE_BAR_PANE=off'),
+    'README must document how to opt out of the WezTerm pane'
+  );
+});
+
+test('WezTerm gets the three-line bar in a pane of its own', () => {
+  const wrapper = read(WRAPPER);
+  const pane = read(PANE);
+
+  assert.ok(wrapper.includes('wezterm_bar_on'), 'wrapper must open the bar pane');
+  const cleanup = wrapper.slice(wrapper.indexOf('cleanup() {'), wrapper.indexOf('trap cleanup'));
+  assert.ok(
+    cleanup.includes('wezterm_bar_off'),
+    'cleanup must close the bar pane or it outlives Codex'
+  );
+
+  assert.ok(wrapper.includes('--top-level'), 'the pane must span the whole window');
+  assert.ok(wrapper.includes('--cells 3'), 'the pane must be three lines tall');
+  assert.ok(wrapper.includes('activate-pane'), 'focus must return to Codex after the split');
+  assert.ok(
+    /\[ -z "\$\{TMUX:-\}" \]/.test(wrapper),
+    'the pane must not open inside tmux, which already draws the bar'
+  );
+
+  // A wrapper killed with SIGKILL never runs its trap, so the pane has to be
+  // able to close itself.
+  assert.ok(
+    pane.includes('kill -0 "$WATCH_PID"'),
+    'the pane must exit when the process it was opened for goes away'
+  );
+  assert.ok(pane.includes('--full'), 'the pane must render all three lines');
 });
 
 test('the example ships in the npm package', () => {

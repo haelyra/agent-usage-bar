@@ -88,7 +88,7 @@ else
   rm -rf "$INSTALL_DIR"
   git clone --quiet --depth 1 "$REPO_URL" "$INSTALL_DIR" && say "cloned"
 fi
-chmod +x "$INSTALL_DIR/bin/codex-wrapper" "$INSTALL_DIR"/bin/*.js 2>/dev/null || true
+chmod +x "$INSTALL_DIR/bin/codex-wrapper" "$INSTALL_DIR/bin/codex-bar-pane" "$INSTALL_DIR"/bin/*.js 2>/dev/null || true
 
 # --- Claude Code -----------------------------------------------------------
 if [ "$DO_CLAUDE" = "1" ] && [ -d "$CLAUDE_DIR" ]; then

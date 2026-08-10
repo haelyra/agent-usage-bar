@@ -62,7 +62,10 @@ so the bar lives in three places, and the installer sets up all of them:
 2. **In tmux** — run `codex` and the wrapper pins the full three-line bar in the
    tmux status area for the lifetime of the run, then restores your previous
    status bar on exit. Nothing persists in your `~/.tmux.conf`.
-3. **Anywhere else** — the wrapper mirrors the bar into the window title, and
+3. **In WezTerm** — run `codex` outside tmux and the wrapper opens a three-line
+   pane across the bottom of the window for the lifetime of the run, then closes
+   it on exit. Nothing to configure.
+4. **Anywhere else** — the wrapper mirrors the bar into the window title, and
    into an OSC 1337 user var that WezTerm and iTerm2 can pin in their status bar.
 
 Plain `codex [args...]` picks all this up through a shell alias; arguments pass
@@ -73,14 +76,24 @@ node ~/.agent-usage-bar/bin/codex-bar.js --full     # print the three lines
 watch -c -n 30 "node ~/.agent-usage-bar/bin/codex-bar.js --full"
 ```
 
-Only step 2 needs tmux. Steps 1 and 3 work in any terminal, including
-Terminal.app, so tmux buys you the three-line bar and nothing else.
+Only step 2 needs tmux. Everything else works in a plain terminal window, and
+WezTerm gets the same three lines tmux users get.
 
 <details>
 <summary>WezTerm: pin the bar in the tab bar</summary>
 
-Copy [`examples/wezterm-usage-bar.lua`](examples/wezterm-usage-bar.lua) next to
-your `wezterm.lua` and require it:
+Nothing is required: the wrapper already opens a three-line pane across the
+bottom of the window. A pane is necessary because WezTerm's only status area is
+the tab bar, which holds one line and cannot be detached from the tab strip.
+
+The pane spans the whole window (`--top-level`, so it does not subdivide the
+pane Codex runs in), hands focus straight back, and watches the wrapper's
+process so a Codex run killed with `SIGKILL` cannot leave it behind.
+
+Prefer a compact one-liner in the tab bar over spending three rows? Set
+`USAGE_BAR_PANE=off`, then copy
+[`examples/wezterm-usage-bar.lua`](examples/wezterm-usage-bar.lua) next to your
+`wezterm.lua` and require it:
 
 ```lua
 require("wezterm-usage-bar").apply()
@@ -123,6 +136,7 @@ Codex starts and clears when it exits.
 | `USAGE_BAR=off` | Run `codex` with no bar |
 | `USAGE_BAR_INTERVAL=15` | Refresh seconds for the Codex bar |
 | `USAGE_BAR_GLYPHS=ascii\|unicode` | Force the glyph set |
+| `USAGE_BAR_PANE=off` | No WezTerm bottom pane, title and user var only |
 
 Block glyphs need a UTF-8 locale — without one, tmux renders them as
 underscores. The installer sets one if yours is not UTF-8, and the bar falls
@@ -134,6 +148,7 @@ back to an ASCII set (`| 7d ||____ 25%`) if that is not possible.
 - `bin/codex-bar.js` — reads the newest `~/.codex/sessions/**/rollout-*.jsonl`
   transcript (by modification time, so resumed sessions stay correct)
 - `bin/codex-wrapper` — runs Codex with the bar pinned around it
+- `bin/codex-bar-pane` draws the three lines in WezTerm's bottom pane
 - `lib/render.js` — colors, glyphs, bars, shared segments
 - `examples/wezterm-usage-bar.lua` pins the bar in WezTerm's tab bar
 
