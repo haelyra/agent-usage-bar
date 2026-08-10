@@ -54,88 +54,51 @@ files — no background daemon, no network calls, no dependencies.
 ## Codex CLI
 
 Codex has no custom status-line API ([openai/codex#14043](https://github.com/openai/codex/issues/14043)),
-so the bar lives in three places, and the installer sets up all of them:
+so the wrapper gives the bar three rows of its own that Codex cannot scroll
+over. Which mechanism does that depends on the terminal, and none of them need
+tmux:
 
-1. **Under the input** — Codex's own `tui.status_line` widgets (model, context,
-   git branch), with colors on. Rate-limit widgets are left out because the bar
-   shows those windows properly.
-2. **In tmux** — run `codex` and the wrapper pins the full three-line bar in the
-   tmux status area for the lifetime of the run, then restores your previous
-   status bar on exit. Nothing persists in your `~/.tmux.conf`.
-3. **In WezTerm** — run `codex` outside tmux and the wrapper opens a three-line
-   pane across the bottom of the window for the lifetime of the run, then closes
-   it on exit. Nothing to configure.
-4. **Any other terminal** — the wrapper reserves the bottom three rows of the
-   window and paints the bar there, right under Codex's composer, releasing them
-   on exit. Works in Terminal.app.
-5. **Everywhere** — the bar is also mirrored into the window title and into an
-   OSC 1337 user var that WezTerm and iTerm2 can pin in their status bar.
+| Terminal | Where the bar goes |
+|---|---|
+| tmux | three lines of the session's status area |
+| WezTerm | a three-row pane across the bottom of the window |
+| Terminal.app and other VT100 terminals | the bottom three rows, reserved with DECSTBM margins |
 
-Plain `codex [args...]` picks all this up through a shell alias; arguments pass
-through untouched.
+All three appear when Codex starts and are given back when it exits. Plain
+`codex [args...]` picks this up through a shell alias; arguments pass through
+untouched.
 
 ```bash
 node ~/.agent-usage-bar/bin/codex-bar.js --full     # print the three lines
 watch -c -n 30 "node ~/.agent-usage-bar/bin/codex-bar.js --full"
 ```
 
-Only step 2 needs tmux. Every terminal gets the same three lines one way or
-another: tmux's status area, a WezTerm pane, or reserved rows at the bottom of
-the window.
-
-Reserved rows work because Codex draws inline rather than on the alternate
-screen. Setting the DECSTBM scroll margins to rows 1 to H-3 stops Codex
-scrolling over the bar, and the margins are re-asserted on each repaint so a
-window resize needs no `SIGWINCH` handling. Windows shorter than nine rows are
-left alone.
+Codex's own `tui.status_line` widgets are deliberately left alone. They render
+their own line under the composer covering the same model, context and
+rate-limit ground, so configuring both stacks two status lines on top of each
+other. To use the native widgets instead, set them in `~/.codex/config.toml`
+and run with `USAGE_BAR=off`.
 
 <details>
-<summary>WezTerm: pin the bar in the tab bar</summary>
+<summary>How each surface works</summary>
 
-Nothing is required: the wrapper already opens a three-line pane across the
-bottom of the window. A pane is necessary because WezTerm's only status area is
-the tab bar, which holds one line and cannot be detached from the tab strip.
+**tmux** gets a 4-line status bar for the session (line 0 keeps the normal
+window list), restored on exit. The options are session-scoped, so nothing
+persists in your `~/.tmux.conf`.
 
-The pane spans the whole window (`--top-level`, so it does not subdivide the
-pane Codex runs in), hands focus straight back, and watches the wrapper's
-process so a Codex run killed with `SIGKILL` cannot leave it behind.
+**WezTerm** gets a pane, because WezTerm's only status area is the tab bar: one
+line, shared with the tab strip, which can neither hold three lines nor be
+detached from the tabs. The pane spans the whole window (`--top-level`), hands
+focus straight back, pins itself to three rows if a resize stretches it, and
+watches the wrapper's process so a run killed with `SIGKILL` cannot leave it
+behind.
 
-Prefer a compact one-liner in the tab bar over spending three rows? Set
-`USAGE_BAR_PANE=off`, then copy
-[`examples/wezterm-usage-bar.lua`](examples/wezterm-usage-bar.lua) next to your
-`wezterm.lua` and require it:
-
-```lua
-require("wezterm-usage-bar").apply()
-```
-
-It colors each segment and reads the user var on WezTerm's own `update-status`
-tick, so nothing polls. Override the palette with
-`apply({ colors = { dim = "#...", five_hour = "#...", seven_day = "#...", critical = "#..." } })`.
-
-Set `tab_bar_at_bottom = true` to put the bar along the bottom edge. WezTerm
-draws the right status inside the tab bar and cannot separate the two, so the
-tab strip moves down with it.
-
-If you inline the logic instead, split the bar with a plain `find`, never a Lua
-character class. `[^│]` matches *bytes*, and `│` (`e2 94 82`) shares its leading
-`e2` with `⬢`, `█`, `░` and `↻`, so a class-based split cuts those glyphs in
-half and emits invalid UTF-8.
-
-</details>
-
-<details>
-<summary>iTerm2: pin the bar in the status bar</summary>
-
-Enable the status bar under Settings, Profiles, Session, then Configure Status
-Bar, and drag in an **Interpolated String** component with:
-
-```text
-\(user.usage_bar)
-```
-
-iTerm2 exposes any OSC 1337 user var as `user.<name>`, so the bar appears when
-Codex starts and clears when it exits.
+**Plain terminals** get the bottom three rows reserved with DECSTBM scroll
+margins of 1 to H-3, which stops Codex scrolling over them. This works only
+because Codex draws inline rather than on the alternate screen. The margins are
+re-asserted per repaint so a resize needs no `SIGWINCH` handling, wrapped in
+DECSC/DECRC so Codex never sees its cursor move. Windows shorter than nine rows
+are left alone.
 
 </details>
 
@@ -161,7 +124,6 @@ back to an ASCII set (`| 7d ||____ 25%`) if that is not possible.
 - `bin/codex-wrapper` — runs Codex with the bar pinned around it
 - `bin/codex-bar-pane` draws the three lines in WezTerm's bottom pane
 - `lib/render.js` — colors, glyphs, bars, shared segments
-- `examples/wezterm-usage-bar.lua` pins the bar in WezTerm's tab bar
 
 Everything is read-only against files the agents already write. The only things
 installed are one `statusLine` entry, one `[tui]` block, and one shell alias.

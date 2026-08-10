@@ -5,7 +5,8 @@
 #
 # Installs the bar for whichever agents you have, and never overwrites config
 # you already wrote: an existing Claude statusLine, an existing Codex
-# tui.status_line, or your own `codex` alias are all left alone.
+# or your own `codex` alias are all left alone. Codex's tui.status_line is
+# never touched in either direction.
 #
 # Flags: --claude-only  --codex-only  --uninstall  --dir <path>
 
@@ -74,7 +75,7 @@ if [ "$UNINSTALL" = "1" ]; then
   fi
   rm -rf "$INSTALL_DIR"
   say "removed $INSTALL_DIR"
-  echo "Done. Codex tui.status_line was left as-is; edit ~/.codex/config.toml to change it."
+  echo "Done. Codex tui.status_line is untouched; edit ~/.codex/config.toml to set it."
   exit 0
 fi
 
@@ -117,29 +118,9 @@ fi
 
 # --- Codex -----------------------------------------------------------------
 if [ "$DO_CODEX" = "1" ] && command -v codex >/dev/null 2>&1; then
-  # Codex renders its own widgets under the input; the bar owns rate limits.
-  node -e '
-    const fs = require("fs");
-    const path = require("path");
-    const dir = process.argv[1];
-    const file = path.join(dir, "config.toml");
-    let toml = "";
-    try { toml = fs.readFileSync(file, "utf8"); } catch {}
-    const tui = toml.match(/^\[tui\][ \t]*$/m);
-    const inTui = tui
-      && /^[ \t]*status_line[ \t]*=/m.test(toml.slice(tui.index + tui[0].length).split(/^\[/m)[0]);
-    if (inTui) {
-      console.log("  Codex: kept your existing tui.status_line");
-    } else {
-      const entry = "status_line = [\"model-with-reasoning\", \"context-remaining\", \"git-branch\"]\nstatus_line_use_colors = true";
-      const next = tui
-        ? toml.slice(0, tui.index + tui[0].length) + "\n" + entry + toml.slice(tui.index + tui[0].length)
-        : toml + (toml.length === 0 ? "" : toml.endsWith("\n") ? "\n" : "\n\n") + "[tui]\n" + entry + "\n";
-      fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(file, next);
-      console.log("  Codex: in-TUI status line configured");
-    }
-  ' "$CODEX_DIR"
+  # Codex's own tui.status_line is deliberately not configured. It renders a
+  # line directly under the composer covering the same model, context and
+  # rate-limit ground as the bar, so setting both stacks two status lines.
 
   # Shell alias so plain `codex` picks up the wrapper. Args pass through, and
   # aliases do not expand inside scripts, so the wrapper's own `codex` is safe.

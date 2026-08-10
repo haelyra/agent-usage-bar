@@ -7,8 +7,7 @@
 #     normal window list); options are session-scoped and restored on exit
 #   - WezTerm outside tmux: a three-line pane across the bottom of the window,
 #     opened for the lifetime of this run and closed after
-#   - any terminal: the window/tab title, plus an OSC 1337 user var that
-#     WezTerm and iTerm2 can pin in their own status bar
+#   - any other terminal: the bottom three rows, reserved with DECSTBM margins
 #
 # Usage: codex-wrapper [codex args...]      (installed as the `codex` alias)
 # Env:   USAGE_BAR=off              plain codex, no bar
@@ -29,25 +28,6 @@ if [ "${USAGE_BAR:-on}" = "off" ] || [ ! -t 1 ] || [ ! -e /dev/tty ] \
 fi
 
 INTERVAL="${USAGE_BAR_INTERVAL:-15}"
-
-# Inside tmux, escape sequences must be wrapped in a DCS passthrough (with ESC
-# bytes doubled) to reach the outer terminal.
-emit() {
-  if [ -n "${TMUX:-}" ]; then
-    printf '\033Ptmux;%s\033\\' "${1//$'\033'/$'\033\033'}" > /dev/tty
-  else
-    printf '%s' "$1" > /dev/tty
-  fi
-}
-
-update_title() {
-  local text b64
-  text="$(node "$BAR" --plain 2>/dev/null | tr -d '\n')" || return 0
-  [ -n "$text" ] || return 0
-  emit "$(printf '\033]2;%s\007' "$text")"
-  b64="$(printf '%s' "$text" | base64 | tr -d '\n')"
-  emit "$(printf '\033]1337;SetUserVar=usage_bar=%s\007' "$b64")"
-}
 
 in_tmux() { [ -n "${TMUX:-}" ] && command -v tmux >/dev/null 2>&1; }
 
@@ -191,20 +171,16 @@ cleanup() {
   tmux_bar_off
   wezterm_bar_off
   region_off
-  emit "$(printf '\033]2;\007')"
-  emit "$(printf '\033]1337;SetUserVar=usage_bar=\007')"
 }
 trap cleanup EXIT INT TERM
 
 tmux_bar_on
 wezterm_bar_on
 region_on
-update_title
 region_paint
 (
   while :; do
     sleep "$INTERVAL"
-    update_title
     region_paint
   done
 ) &

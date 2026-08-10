@@ -27,7 +27,6 @@
   "files": [
     "bin/",
     "lib/",
-    "examples/",
     "install.sh",
     "README.md",
     "LICENSE"
