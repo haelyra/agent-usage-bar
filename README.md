@@ -1,6 +1,6 @@
 # agent-usage-bar
 
-An always-on usage bar for **Claude Code** and **Codex CLI** — how much quota
+An always-on usage bar for **Claude Code** and **Codex CLI**: how much quota
 you have left, what the session is costing, and what you actually have enabled.
 
 ```text
@@ -9,12 +9,12 @@ you have left, what the session is costing, and what you actually have enabled.
 ⬢ swift-lsp 1.0.0 · my-plugin 0.4.2 │ hooks 6 │ myproject
 ```
 
-Line 1 is quota, line 2 is the session, line 3 is your setup — enabled plugins
-with versions, then chips for anything else worth knowing. Nothing to show on
+Line 1 is quota, line 2 is the session, line 3 is your setup (enabled plugins
+with versions, then chips for anything else worth knowing). Nothing to show on
 line 3? It disappears.
 
 > Inspired by [leeguooooo/claude-code-usage-bar](https://github.com/leeguooooo/claude-code-usage-bar)
-> (MIT), which pioneered the always-on rate-limit bar for Claude Code — the
+> (MIT), which pioneered the always-on rate-limit bar for Claude Code only. The
 > prompt-cache widget idea comes from [@marcwimmer](https://github.com/marcwimmer).
 > This is an independent, dependency-free reimplementation that also covers Codex.
 
