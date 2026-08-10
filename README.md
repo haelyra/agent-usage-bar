@@ -1,5 +1,11 @@
 # agent-usage-bar
 
+<img width="1001" height="299" alt="image" src="https://github.com/user-attachments/assets/c1d9ceec-7903-4324-b2d4-0024162dfe82" />
+
+<img width="1001" height="375" alt="image" src="https://github.com/user-attachments/assets/9a996c2c-218a-4b30-bc15-cd9c39317798" />
+
+
+
 An always-on usage bar for **Claude Code** and **Codex CLI**: how much quota
 you have left, what the session is costing, and what you actually have enabled.
 
