@@ -130,6 +130,31 @@ test('window labels map minutes to human units', () => {
   assert.strictEqual(codex.windowLabel(undefined), '');
 });
 
+test('reads the session id and formats a bounded single-line title', () => {
+  withTempDir(dir => {
+    const session = path.join(dir, 'rollout-test-019ff263-bfe1-77e3-b7ad-ce4bc6fac389.jsonl');
+    fs.writeFileSync(session, `${JSON.stringify({ type: 'session_meta', payload: { id: '019ff263-bfe1-77e3-b7ad-ce4bc6fac389' } })}\n`);
+    assert.strictEqual(codex.readSessionId(session), '019ff263-bfe1-77e3-b7ad-ce4bc6fac389');
+    assert.strictEqual(codex.formatConversationTitle('  First line\n second   line  ', 24), 'First line second line');
+    assert.strictEqual(codex.formatConversationTitle('A deliberately long conversation title for the status bar', 32), 'A deliberately long…');
+  });
+});
+
+test('prefers the Codex thread name over its fallback title', () => {
+  withTempDir(dir => {
+    fs.writeFileSync(path.join(dir, 'state_5.sqlite'), 'fixture');
+    const session = path.join(dir, 'rollout-test-019ff263-bfe1-77e3-b7ad-ce4bc6fac389.jsonl');
+    fs.writeFileSync(session, `${JSON.stringify({ type: 'session_meta', payload: { id: '019ff263-bfe1-77e3-b7ad-ce4bc6fac389' } })}\n`);
+    const queried = [];
+    const title = codex.readConversationTitle(dir, session, (_database, _id, field) => {
+      queried.push(field);
+      return field === 'name' ? 'Usage bar title work' : 'Fallback prompt';
+    });
+    assert.strictEqual(title, 'Usage bar title work');
+    assert.deepStrictEqual(queried, ['name']);
+  });
+});
+
 test('reads enabled plugins and trusted hooks from config.toml', () => {
   withTempDir(dir => {
     fs.writeFileSync(path.join(dir, 'config.toml'), [
@@ -146,7 +171,7 @@ test('reads enabled plugins and trusted hooks from config.toml', () => {
   });
 });
 
-test('tmux mode emits tmux colors and no raw ANSI', () => {
+test('tmux mode emits the conversation title, tmux colors, and no raw ANSI', () => {
   withTempDir(dir => {
     const lines = codex.buildLines({
       info: {
@@ -155,8 +180,9 @@ test('tmux mode emits tmux colors and no raw ANSI', () => {
         model_context_window: 258000,
       },
       rate_limits: { primary: { used_percent: 42, window_minutes: 10080 } },
-    }, dir, 'tmux');
+    }, dir, 'tmux', 'Show the Codex conversation title');
     assert.strictEqual(lines.length, 3);
+    assert.ok(lines[1].includes('chat') && lines[1].includes('Show the Codex conversation title'));
     assert.ok(lines.join('').includes('#[fg=colour214]'));
     assert.ok(!lines.join('').includes('\x1b['));
   });

@@ -18,6 +18,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { spawnSync } = require('child_process');
 const {
   G,
   palette,
@@ -29,6 +30,7 @@ const {
 } = require('../lib/render');
 
 const TAIL_BYTES = 256 * 1024;
+const TITLE_MAX_CHARS = 48;
 
 /**
  * Most recently *written* rollout transcript. Modification time beats filename
@@ -82,6 +84,86 @@ function readLastTokenCount(sessionFile) {
   } catch {
     return null;
   }
+}
+
+/** Thread UUID from session_meta, with a filename fallback for torn files. */
+function readSessionId(sessionFile) {
+  let fd;
+  try {
+    fd = fs.openSync(sessionFile, 'r');
+    const buffer = Buffer.alloc(Math.min(fs.fstatSync(fd).size, 64 * 1024));
+    fs.readSync(fd, buffer, 0, buffer.length, 0);
+    for (const line of buffer.toString('utf8').split('\n')) {
+      if (!line.includes('"session_meta"')) continue;
+      try {
+        const event = JSON.parse(line);
+        const id = event?.payload?.id;
+        if (/^[0-9a-f-]{36}$/i.test(id || '')) return id;
+      } catch { /* torn line in the read boundary */ }
+    }
+  } catch { /* try the filename */
+  } finally {
+    if (fd !== undefined) fs.closeSync(fd);
+  }
+  return path.basename(sessionFile || '').match(/([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})\.jsonl$/i)?.[1] || '';
+}
+
+function stateDatabases(codexHome) {
+  try {
+    return fs.readdirSync(codexHome)
+      .filter(name => /^state_\d+\.sqlite$/.test(name))
+      .sort((a, b) => Number(b.match(/\d+/)[0]) - Number(a.match(/\d+/)[0]))
+      .map(name => path.join(codexHome, name));
+  } catch {
+    return [];
+  }
+}
+
+/** Read one scalar without adding a runtime dependency. */
+function queryThreadField(database, threadId, field) {
+  if (!['name', 'title'].includes(field) || !/^[0-9a-f-]{36}$/i.test(threadId)) return '';
+  const sql = `SELECT ${field} FROM threads WHERE id = '${threadId}' LIMIT 1;`;
+  const cli = spawnSync('sqlite3', ['-readonly', database, sql], {
+    encoding: 'utf8',
+    timeout: 1000,
+    windowsHide: true,
+  });
+  if (cli.status === 0) return cli.stdout.trim();
+
+  try {
+    const { DatabaseSync } = require('node:sqlite');
+    const db = new DatabaseSync(database, { readOnly: true });
+    try {
+      return db.prepare(sql).get()?.[field] || '';
+    } finally {
+      db.close();
+    }
+  } catch {
+    return '';
+  }
+}
+
+function formatConversationTitle(value, maxChars = TITLE_MAX_CHARS) {
+  const clean = String(value || '').replace(/\p{Cc}+/gu, ' ').replace(/\s+/g, ' ').trim();
+  const chars = Array.from(clean);
+  if (chars.length <= maxChars) return clean;
+  const prefix = chars.slice(0, maxChars - 1).join('');
+  const wordBreak = prefix.lastIndexOf(' ');
+  const cut = wordBreak >= Math.floor(maxChars * 0.6) ? wordBreak : prefix.length;
+  return `${prefix.slice(0, cut).trimEnd()}…`;
+}
+
+/** Codex thread name/title from its read-only local state database. */
+function readConversationTitle(codexHome, sessionFile, query = queryThreadField) {
+  const threadId = readSessionId(sessionFile);
+  if (!threadId) return '';
+  for (const database of stateDatabases(codexHome)) {
+    for (const field of ['name', 'title']) {
+      const title = formatConversationTitle(query(database, threadId, field));
+      if (title) return title;
+    }
+  }
+  return '';
 }
 
 /** "5h" / "7d" / "12h" from a window length in minutes. */
@@ -138,7 +220,7 @@ function toWindow(limit) {
  * @param {'ansi'|'tmux'|'plain'} mode
  * @returns {string[]}
  */
-function buildLines(tokenCount, codexHome, mode = 'ansi') {
+function buildLines(tokenCount, codexHome, mode = 'ansi', conversationTitle = '') {
   const p = palette(mode);
   const sep = separator(p);
   const info = tokenCount?.info || {};
@@ -164,6 +246,9 @@ function buildLines(tokenCount, codexHome, mode = 'ansi') {
     const paint = pct >= 90 ? p.crit : pct >= 75 ? p.warn : p.ok;
     const size = `${Math.round(info.model_context_window / 1000)}K`;
     line2Parts.push(`${p.dim('ctx')} ${paint(`${buildBar(pct, 10)} ${pct}%`)} ${p.dim(size)}`);
+    if (conversationTitle) {
+      line2Parts.push(`${p.dim('chat')} ${p.rose(formatConversationTitle(conversationTitle))}`);
+    }
   }
   const total = compactTokens(info.total_token_usage?.total_tokens);
   if (total) line2Parts.push(p.dim(`${total} tok`));
@@ -183,10 +268,12 @@ function main() {
   const codexHome = process.env.CODEX_HOME || path.join(os.homedir(), '.codex');
   const mode = argv.includes('--plain') ? 'plain' : argv.includes('--tmux') ? 'tmux' : 'ansi';
   const sessionFile = findNewestSession(codexHome);
+  const conversationTitle = sessionFile ? readConversationTitle(codexHome, sessionFile) : '';
   const lines = buildLines(
     sessionFile ? readLastTokenCount(sessionFile) : null,
     codexHome,
-    mode
+    mode,
+    conversationTitle
   );
 
   const lineFlag = argv.indexOf('--line');
@@ -205,6 +292,9 @@ function main() {
 module.exports = {
   findNewestSession,
   readLastTokenCount,
+  readSessionId,
+  formatConversationTitle,
+  readConversationTitle,
   windowLabel,
   readCodexPlugins,
   countCodexHooks,

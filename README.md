@@ -74,6 +74,14 @@ All three appear when Codex starts and are given back when it exits. Plain
 `codex [args...]` picks this up through a shell alias; arguments pass through
 untouched.
 
+```text
+✳ gpt-5.6-sol │ ctx ███░░░░░░░ 26% 258K │ chat Add usage titles… │ 96.4M tok
+```
+
+The `chat` segment comes from the active thread's local Codex `name` or
+`title`, is collapsed to one line, and is shortened to fit the bar. It is
+omitted when Codex's read-only local state is unavailable.
+
 ```bash
 node ~/.agent-usage-bar/bin/codex-bar.js --full     # print the three lines
 watch -c -n 30 "node ~/.agent-usage-bar/bin/codex-bar.js --full"
@@ -126,7 +134,8 @@ back to an ASCII set (`| 7d ||____ 25%`) if that is not possible.
 
 - `bin/claude-statusline.js` — reads Claude Code's statusline JSON on stdin
 - `bin/codex-bar.js` — reads the newest `~/.codex/sessions/**/rollout-*.jsonl`
-  transcript (by modification time, so resumed sessions stay correct)
+  transcript (by modification time, so resumed sessions stay correct) and the
+  matching name/title from Codex's read-only local thread state
 - `bin/codex-wrapper` — runs Codex with the bar pinned around it
 - `bin/codex-bar-pane` draws the three lines in WezTerm's bottom pane
 - `lib/render.js` — colors, glyphs, bars, shared segments
