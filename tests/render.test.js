@@ -155,6 +155,39 @@ test('prefers the Codex thread name over its fallback title', () => {
   });
 });
 
+test('derives a compact task label from an unrenamed opening prompt', () => {
+  assert.strictEqual(
+    codex.deriveConversationTitle('Some context first. I would like the conversation title to be next to the cache percentage usage.'),
+    'Conversation title next cache percentage usage'
+  );
+  assert.strictEqual(
+    codex.deriveConversationTitle('Unfortunately it is stale. Ensure it updates after the user sends their first prompt.'),
+    'Update after user sends their first prompt'
+  );
+  withTempDir(dir => {
+    fs.writeFileSync(path.join(dir, 'state_5.sqlite'), 'fixture');
+    const session = path.join(dir, 'rollout-test-019ff263-bfe1-77e3-b7ad-ce4bc6fac389.jsonl');
+    fs.writeFileSync(session, `${JSON.stringify({ type: 'session_meta', payload: { id: '019ff263-bfe1-77e3-b7ad-ce4bc6fac389' } })}\n`);
+    const title = codex.readConversationTitle(dir, session, (_database, _id, field) => (
+      field === 'name' ? '' : 'Can you fix the authentication redirect loop and add tests?'
+    ));
+    assert.strictEqual(title, 'Fix authentication redirect loop and add tests');
+  });
+});
+
+test('rejects the previous transcript until this wrapper run writes a session', () => {
+  withTempDir(dir => {
+    const session = path.join(dir, 'rollout-test.jsonl');
+    fs.writeFileSync(session, '{}\n');
+    const startedAt = Date.now() + 1000;
+    assert.strictEqual(codex.isCurrentRunSession(session, startedAt), false);
+    const active = new Date(startedAt + 1000);
+    fs.utimesSync(session, active, active);
+    assert.strictEqual(codex.isCurrentRunSession(session, startedAt), true);
+    assert.strictEqual(codex.isCurrentRunSession(session, ''), true, 'manual renderer use remains compatible');
+  });
+});
+
 test('reads enabled plugins and trusted hooks from config.toml', () => {
   withTempDir(dir => {
     fs.writeFileSync(path.join(dir, 'config.toml'), [

@@ -28,6 +28,8 @@ if [ "${USAGE_BAR:-on}" = "off" ] || [ ! -t 1 ] || [ ! -e /dev/tty ] \
 fi
 
 INTERVAL="${USAGE_BAR_INTERVAL:-15}"
+USAGE_BAR_RUN_STARTED_AT_MS="$(node -e 'process.stdout.write(String(Date.now()))')"
+export USAGE_BAR_RUN_STARTED_AT_MS
 
 in_tmux() { [ -n "${TMUX:-}" ] && command -v tmux >/dev/null 2>&1; }
 
@@ -52,6 +54,7 @@ wezterm_bar_on() {
   local pane
   pane="$(wezterm cli split-pane --bottom --top-level --cells 3 \
     --pane-id "$WEZTERM_PANE" -- \
+    env USAGE_BAR_RUN_STARTED_AT_MS="$USAGE_BAR_RUN_STARTED_AT_MS" \
     bash "$PANE_BAR" "$BAR" "$$" "$INTERVAL" 2>/dev/null)" || return 0
 
   pane="${pane//[$'\r\n\t ']/}"
@@ -167,7 +170,7 @@ tmux_bar_on() {
   local n
   for n in 1 2 3; do
     tmux set "status-format[$n]" \
-      "#[align=left,bg=default,fg=default]#(USAGE_BAR_GLYPHS=$glyphs node \"$BAR\" --tmux --line $n)" \
+      "#[align=left,bg=default,fg=default]#(USAGE_BAR_RUN_STARTED_AT_MS=$USAGE_BAR_RUN_STARTED_AT_MS USAGE_BAR_GLYPHS=$glyphs node \"$BAR\" --tmux --line $n)" \
       >/dev/null 2>&1
   done
 }

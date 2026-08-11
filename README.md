@@ -78,9 +78,11 @@ untouched.
 ⚡ 7d ██░░░░░░ 25% ↻4d │ cache 97% │ chat Add usage titles…
 ```
 
-The `chat` segment comes from the active thread's local Codex `name` or
-`title`, is collapsed to one line, and is shortened to fit the bar. It is
-omitted when Codex's read-only local state is unavailable.
+The `chat` segment stays empty until the current Codex run writes its own
+session, so a fresh chat never inherits the previous chat's label. It then
+prefers the real Codex chat name set by `/rename`; for an unrenamed chat, it
+derives a compact task label from the opening prompt without making a network
+request. It is omitted when Codex's read-only local state is unavailable.
 
 ```bash
 node ~/.agent-usage-bar/bin/codex-bar.js --full     # print the three lines
