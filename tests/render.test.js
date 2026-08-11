@@ -171,7 +171,7 @@ test('reads enabled plugins and trusted hooks from config.toml', () => {
   });
 });
 
-test('tmux mode emits the conversation title, tmux colors, and no raw ANSI', () => {
+test('tmux mode emits the conversation title after cache, tmux colors, and no raw ANSI', () => {
   withTempDir(dir => {
     const lines = codex.buildLines({
       info: {
@@ -182,7 +182,8 @@ test('tmux mode emits the conversation title, tmux colors, and no raw ANSI', () 
       rate_limits: { primary: { used_percent: 42, window_minutes: 10080 } },
     }, dir, 'tmux', 'Show the Codex conversation title');
     assert.strictEqual(lines.length, 3);
-    assert.ok(lines[1].includes('chat') && lines[1].includes('Show the Codex conversation title'));
+    assert.ok(lines[0].includes('chat') && lines[0].includes('Show the Codex conversation title'));
+    assert.ok(lines[0].indexOf('cache') < lines[0].indexOf('chat'));
     assert.ok(lines.join('').includes('#[fg=colour214]'));
     assert.ok(!lines.join('').includes('\x1b['));
   });

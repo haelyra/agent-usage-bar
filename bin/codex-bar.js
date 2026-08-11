@@ -230,12 +230,15 @@ function buildLines(tokenCount, codexHome, mode = 'ansi', conversationTitle = ''
   const cachePct = last?.input_tokens > 0
     ? Math.round(((last.cached_input_tokens || 0) / last.input_tokens) * 100)
     : undefined;
-  const line1 = buildUsageLine({
+  let line1 = buildUsageLine({
     primary: toWindow(limits.primary),
     primaryLabel: windowLabel(limits.primary?.window_minutes) || '5h',
     secondary: toWindow(limits.secondary),
     secondaryLabel: windowLabel(limits.secondary?.window_minutes) || '7d',
   }, cachePct, p) || p.dim(`${G.bolt} no session data yet`);
+  if (conversationTitle) {
+    line1 += `${sep}${p.dim('chat')} ${p.rose(formatConversationTitle(conversationTitle))}`;
+  }
 
   const line2Parts = [
     p.amber(`${G.star} ${readConfigValue(codexHome, /^model\s*=\s*"([^"]+)"/m) || 'codex'}`),
@@ -246,9 +249,6 @@ function buildLines(tokenCount, codexHome, mode = 'ansi', conversationTitle = ''
     const paint = pct >= 90 ? p.crit : pct >= 75 ? p.warn : p.ok;
     const size = `${Math.round(info.model_context_window / 1000)}K`;
     line2Parts.push(`${p.dim('ctx')} ${paint(`${buildBar(pct, 10)} ${pct}%`)} ${p.dim(size)}`);
-    if (conversationTitle) {
-      line2Parts.push(`${p.dim('chat')} ${p.rose(formatConversationTitle(conversationTitle))}`);
-    }
   }
   const total = compactTokens(info.total_token_usage?.total_tokens);
   if (total) line2Parts.push(p.dim(`${total} tok`));

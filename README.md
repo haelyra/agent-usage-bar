@@ -75,7 +75,7 @@ All three appear when Codex starts and are given back when it exits. Plain
 untouched.
 
 ```text
-✳ gpt-5.6-sol │ ctx ███░░░░░░░ 26% 258K │ chat Add usage titles… │ 96.4M tok
+⚡ 7d ██░░░░░░ 25% ↻4d │ cache 97% │ chat Add usage titles…
 ```
 
 The `chat` segment comes from the active thread's local Codex `name` or
